@@ -1,0 +1,51 @@
+sku_id,sku_name,category,supplier,lead_time_days,holding_cost_pct,order_cost_inr,unit_price_inr,current_stock
+SKU001,Whey Protein 1kg,Supplements,NutriSource Pvt Ltd,7,15,800,1179.81,22
+SKU002,Creatine 500g,Supplements,NutriSource Pvt Ltd,7,15,800,1355.47,135
+SKU003,Multivitamin 60tab,Supplements,NutriSource Pvt Ltd,7,15,800,463.92,62
+SKU004,Omega-3 90cap,Supplements,NutriSource Pvt Ltd,7,15,800,1243.92,289
+SKU005,Vitamin D3 60tab,Supplements,NutriSource Pvt Ltd,7,15,800,229.53,226
+SKU006,BCAA Powder 400g,Supplements,NutriSource Pvt Ltd,7,15,800,134.67,57
+SKU007,Pre-Workout 300g,Supplements,NutriSource Pvt Ltd,7,15,800,456.06,268
+SKU008,Magnesium 60tab,Supplements,NutriSource Pvt Ltd,7,15,800,1115.47,297
+SKU009,Zinc 60tab,Supplements,NutriSource Pvt Ltd,7,15,800,422.0,289
+SKU010,Collagen 250g,Supplements,NutriSource Pvt Ltd,7,15,800,801.57,239
+SKU011,Face Wash 150ml,Personal Care,CareWell Distributors,5,12,600,1093.54,13
+SKU012,Shampoo 300ml,Personal Care,CareWell Distributors,5,12,600,1385.15,91
+SKU013,Body Lotion 200ml,Personal Care,CareWell Distributors,5,12,600,1280.8,184
+SKU014,Sunscreen SPF50 100ml,Personal Care,CareWell Distributors,5,12,600,557.94,120
+SKU015,Beard Oil 30ml,Personal Care,CareWell Distributors,5,12,600,1726.41,182
+SKU016,Hair Serum 50ml,Personal Care,CareWell Distributors,5,12,600,255.8,204
+SKU017,Conditioner 300ml,Personal Care,CareWell Distributors,5,12,600,246.35,186
+SKU018,Toner 200ml,Personal Care,CareWell Distributors,5,12,600,1118.41,32
+SKU019,Eye Cream 30ml,Personal Care,CareWell Distributors,5,12,600,1335.14,284
+SKU020,Lip Balm 10g,Personal Care,CareWell Distributors,5,12,600,294.7,203
+SKU021,BP Monitor,Health Devices,MedTech Supplies,14,8,1200,215.54,160
+SKU022,Pulse Oximeter,Health Devices,MedTech Supplies,14,8,1200,1506.58,195
+SKU023,Weighing Scale,Health Devices,MedTech Supplies,14,8,1200,1073.05,45
+SKU024,Thermometer,Health Devices,MedTech Supplies,14,8,1200,158.82,126
+SKU025,Glucometer,Health Devices,MedTech Supplies,14,8,1200,1409.68,50
+SKU026,Nebulizer,Health Devices,MedTech Supplies,14,8,1200,1551.15,61
+SKU027,Heating Pad,Health Devices,MedTech Supplies,14,8,1200,733.82,242
+SKU028,Massager,Health Devices,MedTech Supplies,14,8,1200,1173.38,196
+SKU029,TENS Unit,Health Devices,MedTech Supplies,14,8,1200,359.77,191
+SKU030,Sleep Tracker,Health Devices,MedTech Supplies,14,8,1200,440.35,146
+SKU031,Green Tea 100bags,Wellness Drinks,WellBev India,4,10,500,1287.13,46
+SKU032,Apple Cider Vinegar 500ml,Wellness Drinks,WellBev India,4,10,500,1127.71,97
+SKU033,Turmeric Latte Mix 200g,Wellness Drinks,WellBev India,4,10,500,998.72,135
+SKU034,Protein Shake RTD,Wellness Drinks,WellBev India,4,10,500,361.05,204
+SKU035,Electrolyte Powder 500g,Wellness Drinks,WellBev India,4,10,500,544.31,295
+SKU036,Ashwagandha Latte 200g,Wellness Drinks,WellBev India,4,10,500,457.74,176
+SKU037,Coconut Water 330ml,Wellness Drinks,WellBev India,4,10,500,1529.71,38
+SKU038,Kombucha 250ml,Wellness Drinks,WellBev India,4,10,500,473.96,26
+SKU039,Collagen Drink 250ml,Wellness Drinks,WellBev India,4,10,500,1464.68,215
+SKU040,Immunity Shots 30ml,Wellness Drinks,WellBev India,4,10,500,540.51,118
+SKU041,Paracetamol 500mg,Medicines,PharmaCo Wholesale,3,20,400,1650.59,300
+SKU042,Antacid Syrup 200ml,Medicines,PharmaCo Wholesale,3,20,400,1587.35,171
+SKU043,Cough Syrup 100ml,Medicines,PharmaCo Wholesale,3,20,400,445.72,265
+SKU044,Vitamin C 1000mg,Medicines,PharmaCo Wholesale,3,20,400,760.49,244
+SKU045,Iron Supplement,Medicines,PharmaCo Wholesale,3,20,400,325.74,81
+SKU046,B-Complex,Medicines,PharmaCo Wholesale,3,20,400,504.2,297
+SKU047,Probiotic 30cap,Medicines,PharmaCo Wholesale,3,20,400,1007.04,229
+SKU048,Melatonin 5mg,Medicines,PharmaCo Wholesale,3,20,400,1624.26,214
+SKU049,Digestive Enzyme,Medicines,PharmaCo Wholesale,3,20,400,702.63,80
+SKU050,Fish Oil 60cap,Medicines,PharmaCo Wholesale,3,20,400,956.39,56
