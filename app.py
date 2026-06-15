@@ -31,7 +31,7 @@ st.markdown("""
         color: #e2e8f0 !important;
     }
 
-    /* ── Metric cards — force white text ── */
+    /* ── Metric cards ── */
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #0f1729 0%, #111827 100%) !important;
         border: 1px solid #1e3a5f !important;
@@ -67,14 +67,46 @@ st.markdown("""
         border-bottom: 2px solid #4cc9f0 !important;
     }
 
-    /* ── Selectbox ── */
+    /* ── Selectbox & Multiselect — VISIBLE DROPDOWNS ── */
     [data-testid="stSelectbox"] > div > div,
     [data-testid="stMultiSelect"] > div > div {
-        background: #0f1729 !important;
-        border: 1px solid #1e3a5f !important;
+        background: #1a2035 !important;
+        border: 1px solid #3a4a6b !important;
         color: #e2e8f0 !important;
         border-radius: 8px !important;
     }
+    /* Selected text in selectbox */
+    [data-testid="stSelectbox"] > div > div > div,
+    [data-testid="stMultiSelect"] > div > div > div {
+        color: #e2e8f0 !important;
+    }
+    /* Dropdown arrow / icon */
+    [data-testid="stSelectbox"] svg,
+    [data-testid="stMultiSelect"] svg {
+        fill: #94a3b8 !important;
+    }
+    /* Dropdown popup menu */
+    [data-baseweb="popover"] ul,
+    [data-baseweb="menu"] ul,
+    [data-baseweb="select"] ul {
+        background-color: #1a2035 !important;
+        border: 1px solid #3a4a6b !important;
+    }
+    [data-baseweb="popover"] li,
+    [data-baseweb="menu"] li {
+        background-color: #1a2035 !important;
+        color: #e2e8f0 !important;
+    }
+    [data-baseweb="popover"] li:hover,
+    [data-baseweb="menu"] li:hover {
+        background-color: #2a3a5f !important;
+    }
+    /* Multi-select tags */
+    [data-baseweb="tag"] {
+        background-color: #2a3a5f !important;
+        color: #e2e8f0 !important;
+    }
+    [data-baseweb="tag"] span { color: #e2e8f0 !important; }
 
     /* ── Dataframe ── */
     [data-testid="stDataFrame"] { border: 1px solid #1e2a4a !important; border-radius: 10px !important; }
@@ -303,29 +335,51 @@ with tab1:
     dark_axes(fig)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Gauge + formula
+    # ── Gauge: white/silver monochrome palette ──
     dos_val = min(float(sku_info['days_of_supply']), 60)
+    lt_days = float(sku_info['lead_time_days'])
+
     fig_gauge = go.Figure(go.Indicator(
         mode="gauge+number+delta",
         value=dos_val,
-        delta={'reference': float(sku_info['lead_time_days']), 'suffix': 'd vs LT'},
+        delta={'reference': lt_days, 'suffix': 'd vs LT',
+               'font': {'color': '#cbd5e1', 'size': 13}},
         title={'text': "Days of Supply", 'font': {'color': '#94a3b8', 'size': 13}},
         number={'suffix': ' days', 'font': {'color': '#ffffff', 'size': 28}},
         gauge={
-            'axis': {'range': [0, 60], 'tickcolor': '#475569', 'tickfont': {'color': '#475569'}},
-            'bar': {'color': STATUS_COLOR[status]},
-            'bgcolor': '#0f1729', 'bordercolor': '#1e2a4a',
+            'axis': {
+                'range': [0, 60],
+                'tickcolor': '#64748b',
+                'tickfont': {'color': '#64748b'},
+                'tickwidth': 1,
+            },
+            # Bar colour: white when healthy, light silver when watch, mid-grey when critical
+            'bar': {'color': '#ffffff' if status == 'Healthy' else ('#b0bec5' if status == 'Watch' else '#78909c'),
+                    'thickness': 0.55},
+            'bgcolor': '#0f1729',
+            'borderwidth': 1,
+            'bordercolor': '#1e2a4a',
             'steps': [
-                {'range': [0, float(sku_info['lead_time_days'])], 'color': '#2d0a0a'},
-                {'range': [float(sku_info['lead_time_days']), 20], 'color': '#2d1a00'},
-                {'range': [20, 60], 'color': '#052e16'},
+                # danger zone  — very dark
+                {'range': [0, lt_days],   'color': '#1a1a2e'},
+                # caution zone — slightly lighter
+                {'range': [lt_days, 20],  'color': '#16213e'},
+                # safe zone    — slightly lighter still
+                {'range': [20, 60],       'color': '#0f3460'},
             ],
-            'threshold': {'line': {'color': '#ff6b6b', 'width': 2}, 'thickness': 0.75,
-                          'value': float(sku_info['lead_time_days'])}
+            'threshold': {
+                'line': {'color': '#e2e8f0', 'width': 2},
+                'thickness': 0.75,
+                'value': lt_days,
+            }
         }
     ))
-    fig_gauge.update_layout(paper_bgcolor='#0a0a0f', font=dict(color='#94a3b8'),
-                            height=230, margin=dict(l=20,r=20,t=30,b=10))
+    fig_gauge.update_layout(
+        paper_bgcolor='#0a0a0f',
+        font=dict(color='#94a3b8'),
+        height=230,
+        margin=dict(l=20, r=20, t=30, b=10)
+    )
 
     col_g1, col_g2 = st.columns([1, 2])
     with col_g1:
@@ -354,17 +408,32 @@ with tab2:
     risk_df['stock_gap'] = risk_df['current_stock'] - risk_df['reorder_point']
     risk_df = risk_df.sort_values(['status','days_of_supply'], ascending=[True,True])
 
+    all_categories = merged['category'].unique().tolist()
+
     col_f1,col_f2 = st.columns(2)
     with col_f1:
-        status_filter = st.multiselect("Status", ['Critical','Watch','Healthy'], default=['Critical','Watch'])
+        status_filter = st.multiselect(
+            "Status",
+            ['Critical','Watch','Healthy'],
+            default=['Critical','Watch']
+        )
     with col_f2:
-        cat_filter = st.multiselect("Category", merged['category'].unique().tolist(),
-                                    default=merged['category'].unique().tolist())
+        cat_filter = st.multiselect(
+            "Category",
+            all_categories,
+            default=all_categories   # FIX: always default to all so table is never empty
+        )
+
+    # Guard: if user clears all selections, fall back to showing everything
+    active_statuses = status_filter if status_filter else ['Critical','Watch','Healthy']
+    active_cats     = cat_filter     if cat_filter     else all_categories
 
     display_cols = ['sku_id','sku_name','category','supplier','current_stock',
                     'reorder_point','days_of_supply','forecast_30d_demand','status','stock_gap']
-    risk_filtered = risk_df[risk_df['status'].isin(status_filter) &
-                            risk_df['category'].isin(cat_filter)][display_cols].copy()
+    risk_filtered = risk_df[
+        risk_df['status'].isin(active_statuses) &
+        risk_df['category'].isin(active_cats)
+    ][display_cols].copy()
     risk_filtered.columns = ['SKU ID','SKU Name','Category','Supplier','Stock',
                               'Reorder Point','Days of Supply','30d Forecast','Status','Stock Gap']
 
@@ -416,8 +485,11 @@ with tab3:
         c3.metric("Total PO value",    f"₹{total_val/1e6:.2f}M")
         st.markdown("---")
 
-        col_s1,col_s2 = st.columns(2)
+        # ── Supplier summary table + pie chart side by side ──
+        col_s1, col_s2 = st.columns(2)
+
         with col_s1:
+            st.markdown("#### Supplier breakdown")
             sup_sum = po_df.groupby('supplier').agg(
                 SKUs=('sku_id','count'),
                 Units=('po_qty_recommended','sum'),
@@ -425,6 +497,7 @@ with tab3:
             ).reset_index().sort_values('Value', ascending=False)
             sup_sum['Value'] = sup_sum['Value'].apply(lambda x: f"₹{x:,.0f}")
             st.dataframe(sup_sum, use_container_width=True, hide_index=True)
+
         with col_s2:
             fig_pie = px.pie(
                 po_df.groupby('supplier')['po_value_inr'].sum().reset_index(),
@@ -505,18 +578,49 @@ with tab4:
         dark_axes(fig_fc)
         st.plotly_chart(fig_fc, use_container_width=True)
 
+    # ── Heatmap fix: use all SKUs across all categories, fill NaN nicely ──
     heat_df = merged[['category','sku_name','days_of_supply']].copy()
     heat_df['days_of_supply'] = heat_df['days_of_supply'].replace(999, np.nan)
-    heat_pivot = heat_df.pivot_table(index='sku_name', columns='category', values='days_of_supply')
-    fig_heat = px.imshow(heat_pivot,
-                         color_continuous_scale=['#ff6b6b','#fbbf24','#1e3a5f','#065f46','#34d399'],
-                         zmin=0, zmax=30, title='Days of supply heatmap — all SKUs',
-                         labels=dict(color='DOS'))
-    fig_heat.update_layout(height=620, title_font_color='#e2e8f0',
-                           margin=dict(l=160,r=40,t=50,b=40),
-                           paper_bgcolor='#0a0a0f', font=dict(color='#94a3b8'),
-                           coloraxis_colorbar=dict(tickfont=dict(color='#94a3b8'),
-                                                   title=dict(text='DOS',font=dict(color='#94a3b8'))))
+
+    # Build a complete grid so every SKU × every category has a cell
+    all_cats  = sorted(heat_df['category'].unique())
+    all_skus  = sorted(heat_df['sku_name'].unique())
+    heat_pivot = heat_df.pivot_table(
+        index='sku_name', columns='category',
+        values='days_of_supply', aggfunc='mean'
+    ).reindex(index=all_skus, columns=all_cats)
+
+    fig_heat = px.imshow(
+        heat_pivot,
+        color_continuous_scale=['#ff6b6b','#fbbf24','#1e3a5f','#065f46','#34d399'],
+        zmin=0, zmax=30,
+        title='Days of supply heatmap — all SKUs',
+        labels=dict(color='DOS'),
+        aspect='auto',          # don't force square cells — fill the width properly
+    )
+    fig_heat.update_traces(
+        xgap=2, ygap=2,        # small gaps so individual cells are visible
+        hoverongaps=False,
+    )
+    fig_heat.update_layout(
+        height=700,
+        title_font_color='#e2e8f0',
+        margin=dict(l=180, r=60, t=60, b=60),
+        paper_bgcolor='#0a0a0f',
+        font=dict(color='#94a3b8'),
+        coloraxis_colorbar=dict(
+            tickfont=dict(color='#94a3b8'),
+            title=dict(text='DOS', font=dict(color='#94a3b8'))
+        ),
+        xaxis=dict(
+            tickfont=dict(color='#94a3b8', size=11),
+            title=dict(text='Category', font=dict(color='#64748b'))
+        ),
+        yaxis=dict(
+            tickfont=dict(color='#94a3b8', size=9),
+            title=dict(text='', font=dict(color='#64748b'))
+        ),
+    )
     st.plotly_chart(fig_heat, use_container_width=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
