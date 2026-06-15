@@ -268,8 +268,8 @@ with tab2:
         return 'color:#198754'
 
     styled = risk_filtered.style\
-        .applymap(color_status, subset=['Status'])\
-        .applymap(color_gap, subset=['Stock Gap'])\
+        .map(color_status, subset=['Status'])\
+        .map(color_gap, subset=['Stock Gap'])\
         .format({'Days of Supply': '{:.1f}', 'Stock Gap': '{:+d}'})
 
     st.dataframe(styled, use_container_width=True, height=500)
