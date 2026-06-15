@@ -475,64 +475,184 @@ with tab3:
     po_df['po_value_inr'] = (po_df['po_qty_recommended'] * po_df['unit_price_inr']).round(0)
     po_df = po_df.sort_values('days_of_supply')
 
+    # ── helper: render a plain HTML table with dark theme ──
+    def html_table(df, col_formats=None):
+        """Render df as a styled HTML table that always shows on dark backgrounds."""
+        col_formats = col_formats or {}
+        header_cells = ''.join(f'<th>{c}</th>' for c in df.columns)
+        rows_html = ''
+        for _, row in df.iterrows():
+            cells = ''
+            for col in df.columns:
+                val = row[col]
+                fmt = col_formats.get(col)
+                display = fmt(val) if fmt else str(val)
+
+                # colour rules
+                style = 'color:#e2e8f0;'
+                if col == 'Status':
+                    if val == 'Critical': style = 'color:#ff6b6b;font-weight:700;'
+                    elif val == 'Watch':  style = 'color:#fbbf24;font-weight:700;'
+                    else:                 style = 'color:#34d399;font-weight:700;'
+                elif col == 'DOS':
+                    try:
+                        v = float(val) if not isinstance(val, str) else float(val.replace('d',''))
+                        style = 'color:#ff6b6b;' if v < 7 else ('color:#fbbf24;' if v < 14 else 'color:#34d399;')
+                    except: pass
+                elif col == 'Stock Gap':
+                    try:
+                        style = 'color:#ff6b6b;font-weight:700;' if float(val) < 0 else 'color:#34d399;'
+                    except: pass
+
+                cells += f'<td style="{style}padding:8px 12px;border-bottom:1px solid #1e2a4a;white-space:nowrap;">{display}</td>'
+            rows_html += f'<tr style="background:#0f1729;">{cells}</tr>'
+
+        return f"""
+        <div style="overflow-x:auto;border:1px solid #1e2a4a;border-radius:10px;margin-bottom:16px;">
+        <table style="border-collapse:collapse;width:100%;font-size:12px;font-family:Inter,sans-serif;">
+            <thead>
+                <tr style="background:#1e3a5f;">
+                    {header_cells}
+                </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+        </div>
+        """
+
     if len(po_df) == 0:
         st.success("All SKUs above reorder point — no POs needed!")
     else:
-        total_val = po_df['po_value_inr'].sum()
-        c1,c2,c3 = st.columns(3)
-        c1.metric("SKUs needing PO",   len(po_df))
+        total_val   = po_df['po_value_inr'].sum()
+        total_units = po_df['po_qty_recommended'].sum()
+
+        c1,c2,c3,c4 = st.columns(4)
+        c1.metric("SKUs needing PO",    len(po_df))
         c2.metric("Suppliers involved", po_df['supplier'].nunique())
-        c3.metric("Total PO value",    f"₹{total_val/1e6:.2f}M")
+        c3.metric("Total units to order", f"{int(total_units):,}")
+        c4.metric("Total PO value",     f"₹{total_val/1e6:.2f}M")
         st.markdown("---")
 
-        # ── Supplier summary table + pie chart side by side ──
+        # ── Row 1: Supplier summary table + PO value by supplier pie ──
         col_s1, col_s2 = st.columns(2)
 
+        sup_sum = po_df.groupby('supplier').agg(
+            SKUs=('sku_id','count'),
+            Units=('po_qty_recommended','sum'),
+            Value=('po_value_inr','sum')
+        ).reset_index().sort_values('Value', ascending=False)
+
         with col_s1:
-            st.markdown("#### Supplier breakdown")
-            sup_sum = po_df.groupby('supplier').agg(
-                SKUs=('sku_id','count'),
-                Units=('po_qty_recommended','sum'),
-                Value=('po_value_inr','sum')
-            ).reset_index().sort_values('Value', ascending=False)
-            sup_sum['Value'] = sup_sum['Value'].apply(lambda x: f"₹{x:,.0f}")
-            st.dataframe(sup_sum, use_container_width=True, hide_index=True)
+            st.markdown("##### 📋 Supplier Summary")
+            sup_display = sup_sum.copy()
+            sup_display['Value'] = sup_display['Value'].apply(lambda x: f"₹{x:,.0f}")
+            sup_display['Units'] = sup_display['Units'].apply(lambda x: f"{int(x):,}")
+            st.markdown(html_table(sup_display), unsafe_allow_html=True)
 
         with col_s2:
-            fig_pie = px.pie(
-                po_df.groupby('supplier')['po_value_inr'].sum().reset_index(),
-                values='po_value_inr', names='supplier', title='PO value by supplier',
-                color_discrete_sequence=['#4361ee','#7b2ff7','#4cc9f0','#f72585','#34d399']
+            fig_pie1 = px.pie(
+                sup_sum, values='Value', names='supplier',
+                title='PO value split by supplier',
+                color_discrete_sequence=['#4361ee','#7b2ff7','#4cc9f0','#f72585','#34d399'],
+                hole=0.35,
             )
-            fig_pie.update_traces(textfont_color='white', textfont_size=12)
-            fig_pie.update_layout(height=300, title_font_color='#e2e8f0',
-                                  paper_bgcolor='#0a0a0f', font=dict(color='#94a3b8'),
-                                  margin=dict(t=40,b=10))
-            st.plotly_chart(fig_pie, use_container_width=True)
+            fig_pie1.update_traces(
+                textfont_color='white', textfont_size=11,
+                textinfo='percent+label',
+            )
+            fig_pie1.update_layout(
+                height=300, title_font_color='#e2e8f0',
+                paper_bgcolor='#0a0a0f', font=dict(color='#94a3b8'),
+                margin=dict(t=45,b=10,l=10,r=10),
+                showlegend=False,
+            )
+            st.plotly_chart(fig_pie1, use_container_width=True)
 
+        st.markdown("---")
+
+        # ── Row 2: Category pie + Status pie ──
+        col_p1, col_p2 = st.columns(2)
+
+        cat_sum = po_df.groupby('category')['po_value_inr'].sum().reset_index()
+        with col_p1:
+            fig_pie2 = px.pie(
+                cat_sum, values='po_value_inr', names='category',
+                title='PO value split by category',
+                color_discrete_sequence=['#4cc9f0','#f72585','#34d399','#fbbf24','#7b2ff7'],
+                hole=0.35,
+            )
+            fig_pie2.update_traces(textfont_color='white', textfont_size=11, textinfo='percent+label')
+            fig_pie2.update_layout(
+                height=300, title_font_color='#e2e8f0',
+                paper_bgcolor='#0a0a0f', font=dict(color='#94a3b8'),
+                margin=dict(t=45,b=10,l=10,r=10), showlegend=False,
+            )
+            st.plotly_chart(fig_pie2, use_container_width=True)
+
+        status_sum = po_df.groupby('status')['po_value_inr'].sum().reset_index()
+        with col_p2:
+            fig_pie3 = px.pie(
+                status_sum, values='po_value_inr', names='status',
+                title='PO value split by urgency',
+                color_discrete_map=STATUS_COLOR,
+                hole=0.35,
+            )
+            fig_pie3.update_traces(textfont_color='white', textfont_size=11, textinfo='percent+label')
+            fig_pie3.update_layout(
+                height=300, title_font_color='#e2e8f0',
+                paper_bgcolor='#0a0a0f', font=dict(color='#94a3b8'),
+                margin=dict(t=45,b=10,l=10,r=10), showlegend=False,
+            )
+            st.plotly_chart(fig_pie3, use_container_width=True)
+
+        st.markdown("---")
+
+        # ── Top 15 horizontal bar chart ──
         top_po = po_df.nlargest(15,'po_value_inr')
-        fig_bar = px.bar(top_po, x='po_value_inr', y='sku_name', orientation='h',
-                         color='days_of_supply',
-                         color_continuous_scale=['#ff6b6b','#fbbf24','#34d399'],
-                         title='Top 15 SKUs by PO value (color = days of supply)',
-                         labels={'po_value_inr':'PO Value (₹)','sku_name':''})
-        fig_bar.update_layout(height=420, title_font_color='#e2e8f0',
-                              coloraxis_colorbar=dict(tickfont=dict(color='#94a3b8'),
-                                                     title=dict(text='DOS',font=dict(color='#94a3b8'))),
-                              **CHART_DEFAULTS)
+        fig_bar = px.bar(
+            top_po, x='po_value_inr', y='sku_name', orientation='h',
+            color='days_of_supply',
+            color_continuous_scale=['#ff6b6b','#fbbf24','#34d399'],
+            title='Top 15 SKUs by PO value  (colour = days of supply)',
+            labels={'po_value_inr':'PO Value (₹)','sku_name':''},
+        )
+        fig_bar.update_layout(
+            height=460, title_font_color='#e2e8f0',
+            coloraxis_colorbar=dict(
+                tickfont=dict(color='#94a3b8'),
+                title=dict(text='DOS', font=dict(color='#94a3b8'))
+            ),
+            **CHART_DEFAULTS
+        )
         dark_axes(fig_bar)
         st.plotly_chart(fig_bar, use_container_width=True)
 
+        st.markdown("---")
+
+        # ── Full PO detail table as HTML ──
+        st.markdown("##### 📄 Full PO Detail")
         po_display = po_df[['sku_id','sku_name','category','supplier','current_stock',
                              'reorder_point','eoq','po_qty_recommended','unit_price_inr',
-                             'po_value_inr','days_of_supply','lead_time_days']].copy()
+                             'po_value_inr','days_of_supply','lead_time_days','status']].copy()
         po_display.columns = ['SKU ID','SKU Name','Category','Supplier','Stock','ROP','EOQ',
-                               'Order Qty','Unit Price (₹)','PO Value (₹)','DOS','Lead Time']
-        st.dataframe(po_display.style.format({'PO Value (₹)':'₹{:,.0f}','Unit Price (₹)':'₹{:,.0f}','DOS':'{:.1f}'}),
-                     use_container_width=True, height=380)
+                               'Order Qty','Unit Price (₹)','PO Value (₹)','DOS','Lead Time','Status']
+
+        fmts = {
+            'PO Value (₹)': lambda v: f"₹{v:,.0f}",
+            'Unit Price (₹)': lambda v: f"₹{v:,.0f}",
+            'DOS': lambda v: f"{v:.1f}d",
+            'Stock': lambda v: f"{int(v):,}",
+            'ROP': lambda v: f"{int(v):,}",
+            'EOQ': lambda v: f"{int(v):,}",
+            'Order Qty': lambda v: f"{int(v):,}",
+        }
+        st.markdown(html_table(po_display, col_formats=fmts), unsafe_allow_html=True)
+
         csv = po_display.to_csv(index=False).encode('utf-8')
-        st.download_button("⬇ Download PO sheet as CSV", data=csv,
-                           file_name='purchase_order_recommendations.csv', mime='text/csv')
+        st.download_button(
+            "⬇ Download PO sheet as CSV", data=csv,
+            file_name='purchase_order_recommendations.csv', mime='text/csv'
+        )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 4 — CATEGORY OVERVIEW
