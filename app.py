@@ -6,7 +6,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 st.set_page_config(
-    page_title="Demand Planner | Bold Care",
+    page_title="Inventory Forecasting",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -236,7 +236,7 @@ with st.sidebar:
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
-<p class="neon-title">Smart Inventory & Demand Planner</p>
+<p class="neon-title">Inventory & Demand Forecasting</p>
 <p style="color:#475569;font-size:13px;margin:4px 0 0;">
     50 SKUs · Prophet time-series forecasting · EOQ-based replenishment · Real-time stockout risk
 </p>
@@ -405,51 +405,85 @@ with tab2:
     st.caption("SKUs ranked by urgency. Critical = stock already below reorder point.")
 
     risk_df = merged.copy()
-    risk_df['stock_gap'] = risk_df['current_stock'] - risk_df['reorder_point']
+    risk_df['stock_gap'] = (risk_df['current_stock'] - risk_df['reorder_point']).astype(int)
     risk_df = risk_df.sort_values(['status','days_of_supply'], ascending=[True,True])
 
-    all_categories = merged['category'].unique().tolist()
+    all_statuses   = ['Critical','Watch','Healthy']
+    all_categories = sorted(merged['category'].unique().tolist())
 
-    col_f1,col_f2 = st.columns(2)
+    # ── Filters via radio/checkbox rendered as buttons (no multiselect iframe) ──
+    col_f1, col_f2 = st.columns(2)
     with col_f1:
-        status_filter = st.multiselect(
-            "Status",
-            ['Critical','Watch','Healthy'],
-            default=['Critical','Watch']
-        )
+        st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;'>Filter by Status</div>", unsafe_allow_html=True)
+        show_critical = st.checkbox("🔴 Critical", value=True,  key="rc")
+        show_watch    = st.checkbox("🟡 Watch",    value=True,  key="rw")
+        show_healthy  = st.checkbox("🟢 Healthy",  value=False, key="rh")
     with col_f2:
-        cat_filter = st.multiselect(
-            "Category",
-            all_categories,
-            default=all_categories   # FIX: always default to all so table is never empty
-        )
+        st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;'>Filter by Category</div>", unsafe_allow_html=True)
+        selected_cat_risk = st.selectbox("Category", ['All'] + all_categories, key="risk_cat")
 
-    # Guard: if user clears all selections, fall back to showing everything
-    active_statuses = status_filter if status_filter else ['Critical','Watch','Healthy']
-    active_cats     = cat_filter     if cat_filter     else all_categories
+    active_statuses = []
+    if show_critical: active_statuses.append('Critical')
+    if show_watch:    active_statuses.append('Watch')
+    if show_healthy:  active_statuses.append('Healthy')
+    if not active_statuses: active_statuses = all_statuses  # fallback
 
-    display_cols = ['sku_id','sku_name','category','supplier','current_stock',
-                    'reorder_point','days_of_supply','forecast_30d_demand','status','stock_gap']
-    risk_filtered = risk_df[
-        risk_df['status'].isin(active_statuses) &
-        risk_df['category'].isin(active_cats)
-    ][display_cols].copy()
-    risk_filtered.columns = ['SKU ID','SKU Name','Category','Supplier','Stock',
-                              'Reorder Point','Days of Supply','30d Forecast','Status','Stock Gap']
+    risk_filtered = risk_df[risk_df['status'].isin(active_statuses)].copy()
+    if selected_cat_risk != 'All':
+        risk_filtered = risk_filtered[risk_filtered['category'] == selected_cat_risk]
 
-    def color_status(val):
-        m = {'Critical':'background-color:#2d0a0a;color:#ff6b6b;font-weight:700',
-             'Watch':   'background-color:#2d1a00;color:#fbbf24;font-weight:700',
-             'Healthy': 'background-color:#052e16;color:#34d399;font-weight:700'}
-        return m.get(val,'')
-    def color_gap(val):
-        return 'color:#ff6b6b;font-weight:700' if val < 0 else 'color:#34d399'
+    # ── Build HTML table ──
+    def risk_html_table(df):
+        cols = ['sku_id','sku_name','category','supplier',
+                'current_stock','reorder_point','days_of_supply',
+                'forecast_30d_demand','status','stock_gap']
+        labels = ['SKU ID','SKU Name','Category','Supplier',
+                  'Stock','Reorder Pt','DOS','30d Forecast','Status','Stock Gap']
+        header = ''.join(f'<th style="background:#1e3a5f;color:#e2e8f0;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">{l}</th>' for l in labels)
+        rows_html = ''
+        for _, row in df[cols].iterrows():
+            status = row['status']
+            gap    = int(row['stock_gap'])
+            dos    = float(row['days_of_supply'])
 
-    styled = risk_filtered.style\
-        .map(color_status, subset=['Status'])\
-        .map(color_gap, subset=['Stock Gap'])\
-        .format({'Days of Supply':'{:.1f}','Stock Gap':'{:+d}'})
-    st.dataframe(styled, use_container_width=True, height=420)
+            status_style = {
+                'Critical': 'color:#ff6b6b;font-weight:700;',
+                'Watch':    'color:#fbbf24;font-weight:700;',
+                'Healthy':  'color:#34d399;font-weight:700;',
+            }.get(status, '')
+            gap_style  = 'color:#ff6b6b;font-weight:700;' if gap < 0 else 'color:#34d399;font-weight:600;'
+            dos_style  = 'color:#ff6b6b;' if dos < 7 else ('color:#fbbf24;' if dos < 14 else 'color:#34d399;')
+
+            def cell(val, extra_style=''):
+                return f'<td style="padding:8px 12px;border-bottom:1px solid #1a2540;color:#cbd5e1;font-size:12px;white-space:nowrap;{extra_style}">{val}</td>'
+
+            row_html = (
+                cell(row['sku_id']) +
+                cell(f"<b>{row['sku_name']}</b>") +
+                cell(row['category']) +
+                cell(row['supplier']) +
+                cell(f"{int(row['current_stock']):,}") +
+                cell(f"{int(row['reorder_point']):,}") +
+                cell(f"{dos:.1f}d", dos_style) +
+                cell(f"{int(row['forecast_30d_demand']):,}") +
+                cell(status, status_style) +
+                cell(f"{gap:+,}", gap_style)
+            )
+            rows_html += f'<tr style="background:#0f1729;">{row_html}</tr>'
+
+        return f"""
+        <div style="overflow-x:auto;border:1px solid #1e2a4a;border-radius:10px;max-height:480px;overflow-y:auto;">
+        <table style="border-collapse:collapse;width:100%;font-family:Inter,sans-serif;">
+            <thead style="position:sticky;top:0;z-index:1;"><tr>{header}</tr></thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+        </div>
+        """
+
+    st.markdown(f"<div style='font-size:12px;color:#475569;margin-bottom:8px;'>Showing <b style='color:#e2e8f0;'>{len(risk_filtered)}</b> SKUs</div>", unsafe_allow_html=True)
+    st.markdown(risk_html_table(risk_filtered), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     fig_bubble = px.scatter(
         risk_df, x='days_of_supply', y='stock_gap',
