@@ -276,7 +276,7 @@ with tab2:
 
     # Bubble chart: DOS vs stock gap
     fig_bubble = px.scatter(
-        merged, x='days_of_supply', y='stock_gap',
+        risk_df, x='days_of_supply', y='stock_gap',
         color='status', size='forecast_30d_demand',
         hover_name='sku_name', hover_data=['category', 'supplier'],
         color_discrete_map=STATUS_COLOR,
