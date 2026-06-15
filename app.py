@@ -193,7 +193,7 @@ with tab1:
 
     # Forecast divider
     fig.add_vline(x=str(hist_end), line_dash='dash', line_color='gray', line_width=1, opacity=0.5)
-    fig.add_annotation(x=str(hist_end + pd.Timedelta(days=5)), y=0,
+    fig.add_annotation(x=str(hist_end + pd.Timedelta(days=5)),
                        text="← History | Forecast →", showarrow=False,
                        font=dict(size=10, color='gray'), yref='paper', y=1.04)
 
